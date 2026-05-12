@@ -192,7 +192,7 @@ public:
      * @param bgcolor Background RGB565 colour.
      * @return The character on success, 0 if it would exceed the display edge.
      */
-    char writeChar(uint16_t x, uint16_t y, char ch, FontDef font,
+    char writeChar(uint16_t x, uint16_t y, char ch, SSD1351_FontDef font,
                    uint16_t color, uint16_t bgcolor);
 
     /**
@@ -202,7 +202,7 @@ public:
      * @return The character that caused a failure (out of screen), or '\\0' on
      *         complete success.
      */
-    char writeString(uint16_t x, uint16_t y, const char *str, FontDef font,
+    char writeString(uint16_t x, uint16_t y, const char *str, SSD1351_FontDef font,
                      uint16_t color, uint16_t bgcolor);
 
     /**
@@ -222,7 +222,7 @@ public:
      *
      * @return The character on success, 0 if it would exceed the display edge.
      */
-    char writeChar(char ch, FontDef font, uint16_t color, uint16_t bgcolor);
+    char writeChar(char ch, SSD1351_FontDef font, uint16_t color, uint16_t bgcolor);
 
     /**
      * @brief  Render a string at the current cursor position with line-wrap.
@@ -231,7 +231,7 @@ public:
      *
      * @return The failing character, or '\\0' on complete success.
      */
-    char writeString(const char *str, FontDef font,
+    char writeString(const char *str, SSD1351_FontDef font,
                      uint16_t color, uint16_t bgcolor);
 
     // ---------------------------------------------------- hardware inversion
