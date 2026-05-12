@@ -8,11 +8,11 @@ typedef struct {
     const uint8_t width;
     uint8_t height;
     const uint16_t *data;
-} FontDef;
+} SSD1351_FontDef;
 
 
-extern FontDef Font_7x10;
-extern FontDef Font_11x18;
-extern FontDef Font_16x26;
+extern SSD1351_FontDef SSD1351_Font_7x10;
+extern SSD1351_FontDef SSD1351_Font_11x18;
+extern SSD1351_FontDef SSD1351_Font_16x26;
 
 #endif // __FONTS_H__
