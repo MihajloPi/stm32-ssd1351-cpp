@@ -264,7 +264,7 @@ void SSD1351::onTransferComplete(SPI_HandleTypeDef *hspi)
 // Text rendering – explicit (x, y) overloads
 // ---------------------------------------------------------------------------
 
-char SSD1351::writeChar(uint16_t x, uint16_t y, char ch, FontDef font,
+char SSD1351::writeChar(uint16_t x, uint16_t y, char ch, SSD1351_FontDef font,
                         uint16_t color, uint16_t bgcolor)
 {
     if (x + font.width  > WIDTH  ||
@@ -289,7 +289,7 @@ char SSD1351::writeChar(uint16_t x, uint16_t y, char ch, FontDef font,
     return ch;
 }
 
-char SSD1351::writeString(uint16_t x, uint16_t y, const char *str, FontDef font,
+char SSD1351::writeString(uint16_t x, uint16_t y, const char *str, SSD1351_FontDef font,
                           uint16_t color, uint16_t bgcolor)
 {
     select();
@@ -334,7 +334,7 @@ void SSD1351::setCursor(uint16_t x, uint16_t y)
     _cursorY = y;
 }
 
-char SSD1351::writeChar(char ch, FontDef font, uint16_t color, uint16_t bgcolor)
+char SSD1351::writeChar(char ch, SSD1351_FontDef font, uint16_t color, uint16_t bgcolor)
 {
     select();
     char result = writeChar(_cursorX, _cursorY, ch, font, color, bgcolor);
@@ -346,7 +346,7 @@ char SSD1351::writeChar(char ch, FontDef font, uint16_t color, uint16_t bgcolor)
     return result;
 }
 
-char SSD1351::writeString(const char *str, FontDef font,
+char SSD1351::writeString(const char *str, SSD1351_FontDef font,
                           uint16_t color, uint16_t bgcolor)
 {
     while (*str)
