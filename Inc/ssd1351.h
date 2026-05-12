@@ -1,7 +1,7 @@
 #pragma once
 
 #include "stm32f4xx_hal.h"
-#include "fonts.h"
+#include "SSD1351_fonts.h"
 #include <cstdint>
 #include <cstddef>
 
