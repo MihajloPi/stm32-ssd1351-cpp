@@ -1,4 +1,4 @@
-# ssd1351-stm32HAL-cpp
+# stm32-ssd1351-cpp
 
 SSD1351 128×128 colour OLED driver for STM32F411, written as a C++ class with HAL SPI and optional DMA — modelled after the companion [ssd1306-stm32HAL-cpp](https://github.com/) driver.
 
@@ -15,8 +15,8 @@ SSD1351 128×128 colour OLED driver for STM32F411, written as a C++ class with H
 |------|-------------|
 | `Inc/ssd1351.h` | Class declaration, colour constants, Doxygen API docs |
 | `Src/ssd1351.cpp` | Full implementation |
-| `Inc/fonts.h` | `FontDef` struct and font declarations (unchanged from original C library) |
-| `Src/fonts.c` | Font bitmaps (unchanged from original C library) |
+| `Inc/ssd1351_fonts.h` | `SSD1351_FontDef` struct and font declarations |
+| `Src/ssd13511_fonts.c` | Font bitmaps (7×10, 11×18, 16×26) |
 
 ---
 
@@ -37,12 +37,12 @@ The SSD1351 uses a 4-wire SPI interface plus two control lines:
 ## CubeMX setup
 
 ### Basic SPI (blocking)
-1. Enable an SPI peripheral in **Full-Duplex Master** mode.
+1. Enable an SPI peripheral in **Full-Duplex Master** mode, **8-bit data size**.
 2. Configure the three GPIO output pins (CS, DC, RES) as `GPIO_OUTPUT_PP`.
 3. No DMA or interrupts needed for blocking operation.
 
 ### With DMA (for `drawImageDMA()`)
-1. Open the SPI peripheral → **DMA Settings** → add a TX stream.  
+1. Open the SPI peripheral → **DMA Settings** → add a TX stream.
    Typical STM32F411 mappings:
 
    | Peripheral | Stream | Channel |
@@ -74,10 +74,10 @@ SSD1351 display(hspi1,
 ### Initialisation
 
 ```cpp
-// Call before any other SPI device is initialised
+// Release the bus before any other SPI device initialises
 display.unselect();
 
-// Run the hardware reset + command sequence
+// Hardware reset + full init command sequence
 display.init();
 ```
 
@@ -101,18 +101,18 @@ display.fillRectangle(64, 0, 64, 64, orange);
 ### Text — explicit position
 
 ```cpp
-display.writeString(0, 0, "Hello!", Font_7x10, SSD1351::WHITE, SSD1351::BLACK);
-display.writeString(0, 20, "STM32", Font_11x18, SSD1351::YELLOW, SSD1351::BLACK);
+display.writeString(0,  0, "Hello!", SSD1351_Font_7x10,  SSD1351::WHITE,  SSD1351::BLACK);
+display.writeString(0, 20, "STM32",  SSD1351_Font_11x18, SSD1351::YELLOW, SSD1351::BLACK);
 ```
 
 ### Text — cursor-based (matches SSD1306 API)
 
 ```cpp
 display.setCursor(0, 0);
-display.writeString("Hello!", Font_7x10, SSD1351::WHITE, SSD1351::BLACK);
+display.writeString("Hello!", SSD1351_Font_7x10, SSD1351::WHITE, SSD1351::BLACK);
 
 display.setCursor(0, 20);
-display.writeChar('A', Font_11x18, SSD1351::GREEN, SSD1351::BLACK);
+display.writeChar('A', SSD1351_Font_11x18, SSD1351::GREEN, SSD1351::BLACK);
 ```
 
 ### Image blit — blocking
@@ -124,16 +124,57 @@ display.drawImage(0, 0, 128, 128, myImage);
 
 ### Image blit — DMA (non-blocking)
 
-```cpp
-// Wire the callback in main.c or stm32f4xx_it.c:
-extern SSD1351 display;
+Wire `onTransferComplete` into the SPI TX-complete callback. The callback must be
+reachable from C, so it belongs in `stm32f4xx_it.c` or in an `extern "C"` block.
+
+**Option A — in `stm32f4xx_it.c` (pure C file)**
+
+Add a forward declaration and the callback body:
+
+```c
+/* stm32f4xx_it.c */
+
+/* Forward declaration — defined in app_main.cpp or similar */
+void SSD1351_TxCpltCallback(SPI_HandleTypeDef *hspi);
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
+    SSD1351_TxCpltCallback(hspi);
+}
+```
+
+Then in your C++ application file:
+
+```cpp
+// app_main.cpp
+extern SSD1351 display;
+
+extern "C" void SSD1351_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
     display.onTransferComplete(hspi);
 }
+```
 
-// In your application code:
+**Option B — entirely in a C++ file with `extern "C"`**
+
+If your callback is defined in your main C++ file, use an `extern "C"` block:
+
+```cpp
+// app_main.cpp
+extern "C" {
+    void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
+        display.onTransferComplete(hspi);
+    }
+}
+```
+
+**Using `drawImageDMA`:**
+
+```cpp
+// The image buffer must remain valid until onTransferComplete() fires.
+// Do NOT pass a local (stack) variable.
+static const uint16_t myImage[128 * 128] = { /* ... */ };
+
 if (!display.isBusy())
     display.drawImageDMA(0, 0, 128, 128, myImage);
 ```
@@ -164,12 +205,12 @@ SSD1351(SPI_HandleTypeDef &hspi,
 |--------|-------------|
 | `bool init()` | Hardware reset + init command sequence |
 | `void unselect()` | De-assert CS (call before other SPI devices init) |
-| `void fill(uint16_t color)` | Fill entire screen |
+| `void fill(color)` | Fill entire screen |
 | `void fillRectangle(x, y, w, h, color)` | Fill rectangle (clipped) |
 | `void drawPixel(x, y, color)` | Draw single pixel |
 | `void drawImage(x, y, w, h, data)` | Blit RGB565 image (blocking) |
-| `bool drawImageDMA(x, y, w, h, data)` | Blit RGB565 image via DMA |
-| `bool isBusy()` | True while DMA transfer in progress |
+| `bool drawImageDMA(x, y, w, h, data)` | Blit RGB565 image via DMA (non-blocking) |
+| `bool isBusy()` | True while a DMA transfer is in progress |
 | `void onTransferComplete(hspi)` | Call from `HAL_SPI_TxCpltCallback` |
 | `char writeChar(x, y, ch, font, color, bgcolor)` | Draw char at explicit position |
 | `char writeString(x, y, str, font, color, bgcolor)` | Draw string at explicit position |
@@ -181,10 +222,35 @@ SSD1351(SPI_HandleTypeDef &hspi,
 ### Colour constants
 
 ```cpp
-SSD1351::BLACK   SSD1351::WHITE   SSD1351::RED     SSD1351::GREEN
-SSD1351::BLUE    SSD1351::CYAN    SSD1351::MAGENTA  SSD1351::YELLOW
-SSD1351::color565(r, g, b)   // pack custom colour
+SSD1351::BLACK    SSD1351::WHITE    SSD1351::RED      SSD1351::GREEN
+SSD1351::BLUE     SSD1351::CYAN     SSD1351::MAGENTA  SSD1351::YELLOW
+SSD1351::color565(r, g, b)   // pack custom RGB into RGB565
 ```
+
+### Font objects
+
+Declared in `ssd1351_fonts.h`, defined in `ssd13511_fonts.c`:
+
+```cpp
+SSD1351_Font_7x10    // small  — fits ~18 chars across the 128 px width
+SSD1351_Font_11x18   // medium — fits ~11 chars across
+SSD1351_Font_16x26   // large  — fits ~8 chars across
+```
+
+---
+
+## DMA notes
+
+- **Buffer lifetime.** The pixel buffer passed to `drawImageDMA()` must remain in
+  memory until `onTransferComplete()` fires (i.e. until `isBusy()` returns false).
+  Never pass a stack-allocated buffer.
+- **No concurrent calls.** `drawImageDMA()` returns `false` immediately if a
+  previous transfer has not yet completed. Check `isBusy()` before calling.
+- **Callback wiring is mandatory.** Without `onTransferComplete()` being called,
+  `_dmaInProgress` is never cleared and all subsequent `drawImageDMA()` calls
+  will silently do nothing.
+- **SPI data size must be 8-bit.** The driver sends pixel data as raw bytes. If
+  your CubeMX SPI configuration uses 16-bit data size, change it to 8-bit.
 
 ---
 
@@ -196,8 +262,8 @@ SSD1351::color565(r, g, b)   // pack custom colour
 | Multiple displays | Not supported | One instance per display |
 | DMA support | None | `drawImageDMA()` + callback |
 | Cursor-based text | None | `setCursor()` + cursor overloads |
-| `fill()` alias | `FillScreen()` | `fill()` (matches SSD1306) |
-| CS management | Global `SSD1351_Select/Unselect` | Per-instance, automatic |
+| `fill()` alias | `SSD1351_FillScreen()` | `fill()` (matches SSD1306) |
+| CS management | Global select/unselect functions | Per-instance, automatic |
 
 ---
 

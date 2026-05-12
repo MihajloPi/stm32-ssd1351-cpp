@@ -234,9 +234,10 @@ bool SSD1351::drawImageDMA(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
     _dmaInProgress = true;
 
     const uint16_t pixelCount = w * h;
+    const uint16_t byteCount  = static_cast<uint16_t>(pixelCount * sizeof(uint16_t));
     if (HAL_SPI_Transmit_DMA(&_hspi,
                               reinterpret_cast<uint8_t *>(const_cast<uint16_t *>(data)),
-                              pixelCount * sizeof(uint16_t)) != HAL_OK)
+                              byteCount) != HAL_OK)
     {
         _dmaInProgress = false;
         unselect();
@@ -271,6 +272,7 @@ char SSD1351::writeChar(uint16_t x, uint16_t y, char ch, SSD1351_FontDef font,
         y + font.height > HEIGHT)
         return 0;
 
+    select();
     setAddressWindow(x, y, x + font.width - 1, y + font.height - 1);
 
     for (uint32_t row = 0; row < font.height; ++row)
@@ -286,14 +288,13 @@ char SSD1351::writeChar(uint16_t x, uint16_t y, char ch, SSD1351_FontDef font,
         }
     }
 
+    unselect();
     return ch;
 }
 
 char SSD1351::writeString(uint16_t x, uint16_t y, const char *str, SSD1351_FontDef font,
                           uint16_t color, uint16_t bgcolor)
 {
-    select();
-
     while (*str)
     {
         if (x + font.width >= WIDTH)
@@ -311,16 +312,12 @@ char SSD1351::writeString(uint16_t x, uint16_t y, const char *str, SSD1351_FontD
         }
 
         if (writeChar(x, y, *str, font, color, bgcolor) != *str)
-        {
-            unselect();
             return *str;
-        }
 
         x   += font.width;
         ++str;
     }
 
-    unselect();
     return '\0';
 }
 
