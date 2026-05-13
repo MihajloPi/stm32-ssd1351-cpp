@@ -103,7 +103,7 @@ bool SSD1351::init()
     writeCommand(0xAE); // DISPLAYOFF
 
     writeCommand(0xB3); // CLOCKDIV
-    writeCommand(0xF1); // 7:4 = oscillator freq, 3:0 = CLK div ratio (A[3:0]+1)
+    { uint8_t d[] = { 0xF1 }; writeData(d, sizeof(d)); } // 7:4 = oscillator freq, 3:0 = CLK div ratio (A[3:0]+1)
 
     writeCommand(0xCA); // MUXRATIO
     { uint8_t d[] = { 0x7F }; writeData(d, sizeof(d)); }   // 127
